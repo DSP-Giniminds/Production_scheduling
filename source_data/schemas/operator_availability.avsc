@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "OperatorAvailabilityEvent",
+  "fields": [
+    {"name": "operator_id", "type": "string"},
+    {"name": "shift", "type": "string"},
+    {"name": "available", "type": "boolean"},
+    {"name": "event_time", "type": "string"}
+  ]
+}

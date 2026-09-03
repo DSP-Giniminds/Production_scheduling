@@ -1,0 +1,18 @@
+{
+  "name": "iot-machine-mqtt-source",
+  "config": {
+    "connector.class": "io.confluent.connect.mqtt.MqttSourceConnector",
+    "tasks.max": "1",
+
+    "mqtt.server.uri": "tcp://10.10.20.48:1883",
+    "mqtt.topics": "factory/machines/+/status",
+    "kafka.topics": "iot.machine.status",
+    "mqtt.qos": "1",
+
+    "confluent.topic.bootstrap.servers": "localhost:7092",
+    "confluent.topic.replication.factor": "1",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter"
+  }
+}

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Factory Scheduling Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #14181D;
+    --panel: #1C2129;
+    --border: #2A303B;
+    --text: #E4E7EB;
+    --text-dim: #8B93A1;
+    --running: #4CAF7D;
+    --idle: #D9A441;
+    --down: #E2622A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  header {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+  }
+  header .updated {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 28px 60px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin: 0 0 10px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .stat-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+  }
+  .stat-panel .value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px;
+    font-weight: 500;
+  }
+  .stat-panel .label {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .stat-breakdown {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+  .dot.running { background: var(--running); }
+  .dot.idle { background: var(--idle); }
+  .dot.down { background: var(--down); }
+  .dot.queued { background: var(--idle); }
+  .dot.in_progress { background: var(--running); }
+  .dot.complete { background: var(--text-dim); }
+
+  /* Machine grid -- the SCADA-style status panel, the hero element */
+  .machine-grid-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+    margin-bottom: 28px;
+  }
+  .machine-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .machine-tile {
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    position: relative;
+  }
+  .machine-tile .indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-bottom: 4px;
+  }
+  .machine-tile.running .indicator { background: var(--running); box-shadow: 0 0 6px var(--running); }
+  .machine-tile.idle .indicator { background: var(--idle); }
+  .machine-tile.down .indicator { background: var(--down); box-shadow: 0 0 6px var(--down); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1.1fr 1.4fr;
+    gap: 20px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  tr:last-child td { border-bottom: none; }
+  .tardy-nonzero { color: var(--down); }
+  .tardy-zero { color: var(--text-dim); }
+  .cause-detail { color: var(--text-dim); font-family: 'IBM Plex Sans', sans-serif; }
+
+  .empty-state {
+    color: var(--text-dim);
+    padding: 20px 0;
+    text-align: center;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Factory Scheduling Status</h1>
+  <span class="updated mono" id="last-updated">loading...</span>
+</header>
+
+<main>
+
+  <div class="stat-row">
+    <div class="stat-panel">
+      <div class="value" id="machines-total">--</div>
+      <div class="label">Machines tracked</div>
+      <div class="stat-breakdown" id="machines-breakdown"></div>
+    </div>
+    <div class="stat-panel">
+      <div class="value" id="orders-total">--</div>
+      <div class="label">Active orders</div>
+      <div class="stat-breakdown" id="orders-breakdown"></div>
+    </div>
+    <div class="stat-panel">
+      <div class="value" id="reschedule-count">--</div>
+      <div class="label">Reschedule batches recorded</div>
+      <div class="stat-breakdown" id="reschedule-latest"></div>
+    </div>
+  </div>
+
+  <div class="machine-grid-section">
+    <p class="section-label">MACHINE STATUS</p>
+    <div class="machine-grid" id="machine-grid"></div>
+  </div>
+
+  <div class="two-col">
+    <div class="panel">
+      <p class="section-label">TOTAL TARDINESS PER RESCHEDULE</p>
+      <canvas id="tardiness-chart" height="220"></canvas>
+    </div>
+    <div class="panel">
+      <p class="section-label">RECENT RESCHEDULES</p>
+      <div id="reschedule-table"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const REFRESH_MS = 8000;
+  let tardinessChart = null;
+
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function statusLabel(s) {
+    return s.replace('_', ' ');
+  }
+
+  async function loadMachines() {
+    const [summary, list] = await Promise.all([
+      fetch('/api/machines/summary').then(r => r.json()),
+      fetch('/api/machines/list').then(r => r.json()),
+    ]);
+
+    const total = summary.reduce((sum, row) => sum + row.count, 0);
+    setText('machines-total', total);
+
+    const breakdown = document.getElementById('machines-breakdown');
+    breakdown.innerHTML = summary.map(row =>
+      `<span><span class="dot ${row.status}"></span>${row.count} ${statusLabel(row.status)}</span>`
+    ).join('');
+
+    const grid = document.getElementById('machine-grid');
+    grid.innerHTML = list.map(m =>
+      `<div class="machine-tile ${m.status}" title="${m.machine_id} -- ${m.type || 'unknown type'} -- ${m.status}">
+         <div class="indicator"></div>${m.machine_id.replace('M-', '')}
+       </div>`
+    ).join('');
+  }
+
+  async function loadOrders() {
+    const summary = await fetch('/api/orders/summary').then(r => r.json());
+    const total = summary.reduce((sum, row) => sum + row.count, 0);
+    setText('orders-total', total);
+
+    const breakdown = document.getElementById('orders-breakdown');
+    breakdown.innerHTML = summary.map(row =>
+      `<span><span class="dot ${row.status}"></span>${row.count} ${statusLabel(row.status)}</span>`
+    ).join('');
+  }
+
+  async function loadReschedules() {
+    const rows = await fetch('/api/reschedules/recent?limit=15').then(r => r.json());
+    const container = document.getElementById('reschedule-table');
+
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="empty-state">No reschedules recorded yet.</div>';
+      return;
+    }
+
+    const tableRows = rows.map(r => `
+      <tr>
+        <td>${r.order_id}</td>
+        <td>${r.machine_id}</td>
+        <td class="${r.tardy_minutes > 0 ? 'tardy-nonzero' : 'tardy-zero'}">${r.tardy_minutes}m</td>
+        <td class="cause-detail">${r.triggered_by}</td>
+      </tr>
+    `).join('');
+
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Order</th><th>Machine</th><th>Tardy</th><th>Cause</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    `;
+  }
+
+  async function loadTrend() {
+    const rows = await fetch('/api/reschedules/trend').then(r => r.json());
+
+    setText('reschedule-count', rows.length);
+    if (rows.length > 0) {
+      const latest = rows[rows.length - 1];
+      setText('reschedule-latest', `Latest batch: ${latest.total_tardy}m total tardy across ${latest.orders_in_batch} orders`);
+    }
+
+    const labels = rows.map((r, i) => `#${i + 1}`);
+    const data = rows.map(r => r.total_tardy);
+
+    const ctx = document.getElementById('tardiness-chart').getContext('2d');
+    if (tardinessChart) {
+      tardinessChart.data.labels = labels;
+      tardinessChart.data.datasets[0].data = data;
+      tardinessChart.update();
+      return;
+    }
+
+    tardinessChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          borderColor: '#E2622A',
+          backgroundColor: 'rgba(226, 98, 42, 0.08)',
+          borderWidth: 2,
+          pointRadius: 2,
+          fill: true,
+          tension: 0.15,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#2A303B' }, ticks: { color: '#8B93A1', font: { family: 'IBM Plex Mono', size: 10 } } },
+          y: { grid: { color: '#2A303B' }, ticks: { color: '#8B93A1', font: { family: 'IBM Plex Mono', size: 10 } }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  async function refreshAll() {
+    try {
+      await Promise.all([loadMachines(), loadOrders(), loadReschedules(), loadTrend()]);
+      setText('last-updated', 'updated ' + new Date().toLocaleTimeString());
+    } catch (e) {
+      setText('last-updated', 'error refreshing -- check API');
+      console.error(e);
+    }
+  }
+
+  refreshAll();
+  setInterval(refreshAll, REFRESH_MS);
+</script>
+
+</body>
+</html>

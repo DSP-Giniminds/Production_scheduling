@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "MaterialInventoryEvent",
+  "fields": [
+    {"name": "order_id", "type": "string"},
+    {"name": "event", "type": "string"},
+    {"name": "due_date", "type": "string"},
+    {"name": "event_time", "type": "string"}
+  ]
+}

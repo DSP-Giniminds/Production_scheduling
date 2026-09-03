@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "SchedulingUpdate",
+  "fields": [
+    {"name": "order_id", "type": "string"},
+    {"name": "machine_id", "type": "string"},
+    {"name": "end_minutes", "type": "int"},
+    {"name": "tardy_minutes", "type": "int"},
+    {"name": "triggered_by", "type": "string"},
+    {"name": "trigger_detail", "type": ["null", "string"], "default": null},
+    {"name": "solved_at", "type": "string"}
+  ]
+}

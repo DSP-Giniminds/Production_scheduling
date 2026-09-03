@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "WorkOrderStatusEvent",
+  "fields": [
+    {"name": "order_id", "type": "string"},
+    {"name": "status", "type": "string"},
+    {"name": "priority", "type": "string"},
+    {"name": "event_time", "type": "string"}
+  ]
+}
