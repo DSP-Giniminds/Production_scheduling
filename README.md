@@ -68,11 +68,11 @@ requirements.txt     single consolidated dependency list for everything
 
 |Component|Address|
 |-|-|
-|Kafka broker|`10.10.20.33:7092`|
-|Schema Registry|`http://10.10.20.33:7081`|
-|Kafka Connect REST|`http://localhost:8083` (on `ginicoeapp02`)|
-|MQTT broker (Mosquitto, Docker)|`10.10.20.48:1883`|
-|ClickHouse|`10.10.20.33:8123`, user `default`|
+|Kafka broker|`<host>:7092`|
+|Schema Registry|`http://<host>:7081`|
+|Kafka Connect REST|`http://<host>:8083` |
+|MQTT broker (Mosquitto, Docker)|`<host>:1883`|
+|ClickHouse|`<host>:8123`, user `default`|
 |Dashboard|`http://<host>:8000` (uvicorn)|
 
 This is a **shared, multi-tenant cluster** — other pipelines already run on
